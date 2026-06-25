@@ -335,18 +335,55 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
 
   function attachLensSettings() {
     const modal = findSettingsModal();
-    if (!modal || modal.querySelector("[data-lens-settings=section]")) return;
+    if (!modal) return;
 
-    const nav = findSettingsNav(modal);
+    const sidebar = findSettingsSidebar(modal);
+    const content = findSettingsContent(modal, sidebar);
+    if (!sidebar || !content) return;
+
+    if (!modal.querySelector('[data-lens-settings="category"]')) {
+      sidebar.appendChild(createLensCategory(sidebar, content));
+    }
+
+    if (content.querySelector('[data-lens-settings="panel"]')) return;
+
     const section = document.createElement("section");
-    section.dataset.lensSettings = "section";
+    section.dataset.lensSettings = "panel";
+    section.hidden = true;
     section.tabIndex = -1;
     section.innerHTML = `
     <style>
-      [data-lens-settings="section"] {
-        margin-top: 16px;
-        border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
-        padding-top: 16px;
+      [data-lens-settings="category"] {
+        margin-top: 14px;
+      }
+      [data-lens-settings="category-label"] {
+        margin: 0 0 6px;
+        color: color-mix(in srgb, currentColor 54%, transparent);
+        font: 600 11px/1.2 system-ui, sans-serif;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      [data-lens-settings="nav"] {
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+        padding: 7px 10px;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+      }
+      [data-lens-settings="nav"]:hover,
+      [data-lens-settings="nav"][aria-current="page"] {
+        background: color-mix(in srgb, currentColor 10%, transparent);
+      }
+      [data-lens-settings="panel"] {
+        display: grid;
+        gap: 14px;
+      }
+      [data-lens-settings="panel"][hidden] {
+        display: none !important;
       }
       [data-lens-settings="header"] {
         display: flex;
@@ -357,10 +394,10 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
       }
       [data-lens-settings="title"] {
         margin: 0;
-        font: 600 14px/1.2 system-ui, sans-serif;
+        font: 600 18px/1.2 system-ui, sans-serif;
       }
       [data-lens-settings="hint"] {
-        margin: 0 0 12px;
+        margin: 0;
         color: color-mix(in srgb, currentColor 68%, transparent);
         font: 12px/1.4 system-ui, sans-serif;
       }
@@ -376,6 +413,10 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
         border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
         border-radius: 10px;
         padding: 10px 12px;
+      }
+      [data-lens-settings="plugin-copy"] {
+        display: grid;
+        min-width: 0;
       }
       [data-lens-settings="plugin-name"] {
         font: 500 13px/1.3 system-ui, sans-serif;
@@ -393,6 +434,46 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
         color: color-mix(in srgb, currentColor 68%, transparent);
         font: 12px/1.35 system-ui, sans-serif;
       }
+      [data-lens-settings="toggle"] {
+        position: relative;
+        display: inline-flex;
+        width: 38px;
+        height: 22px;
+        flex: 0 0 auto;
+        align-items: center;
+      }
+      [data-lens-settings="toggle"] input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      [data-lens-settings="toggle-track"] {
+        width: 100%;
+        height: 100%;
+        border-radius: 999px;
+        background: color-mix(in srgb, currentColor 18%, transparent);
+        transition: background 120ms ease;
+      }
+      [data-lens-settings="toggle-track"]::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        background: canvas;
+        box-shadow: 0 1px 3px rgb(0 0 0 / 25%);
+        transition: transform 120ms ease;
+      }
+      [data-lens-settings="toggle"] input:checked + [data-lens-settings="toggle-track"] {
+        background: #22c55e;
+      }
+      [data-lens-settings="toggle"] input:checked + [data-lens-settings="toggle-track"]::after {
+        transform: translateX(16px);
+      }
       [data-lens-settings="reload"] {
         border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
         border-radius: 999px;
@@ -404,29 +485,26 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
       }
     </style>
     <div data-lens-settings="header">
-      <h2 data-lens-settings="title">Lens Plugins</h2>
+      <h2 data-lens-settings="title">Plugins</h2>
       <button type="button" data-lens-settings="reload">Reload UI</button>
     </div>
     <p data-lens-settings="hint">Enable or disable plugins, then reload OpenCode Web to apply the current set.</p>
     <div data-lens-settings="list">Loading plugins...</div>
   `;
 
-    findSettingsContent(modal).appendChild(section);
+    content.appendChild(section);
     section
       .querySelector('[data-lens-settings="reload"]')
       ?.addEventListener("click", () => location.reload());
 
-    if (nav) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.lensSettings = "nav";
-      button.textContent = "Lens Plugins";
-      button.addEventListener("click", () => {
-        section.scrollIntoView({ block: "start", behavior: "smooth" });
-        section.focus({ preventScroll: true });
-      });
-      nav.appendChild(button);
-    }
+    sidebar.addEventListener("click", (event) => {
+      if (event.target instanceof Element && event.target.closest('[data-lens-settings="nav"]')) {
+        return;
+      }
+
+      restoreSettingsPanel(content);
+      modal.querySelector('[data-lens-settings="nav"]')?.removeAttribute("aria-current");
+    });
 
     renderPluginList(section);
   }
@@ -438,22 +516,83 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
     return candidates.find((candidate) => /settings/i.test(candidate.textContent || ""));
   }
 
-  function findSettingsNav(modal) {
-    return (
-      modal.querySelector('nav,[role="tablist"]') ||
-      Array.from(modal.querySelectorAll("div,aside,section")).find(
-        (candidate) => candidate.querySelectorAll("button").length >= 2,
-      )
-    );
+  function findSettingsSidebar(modal) {
+    const candidates = Array.from(modal.querySelectorAll('aside,nav,[role="tablist"],div'));
+    return candidates.find((candidate) => {
+      const text = candidate.textContent || "";
+      return /Desktop/i.test(text) && /Server/i.test(text) && candidate.querySelector("button");
+    });
   }
 
-  function findSettingsContent(modal) {
-    return (
-      Array.from(modal.querySelectorAll("main,section,div")).find(
-        (candidate) =>
-          candidate.scrollHeight > candidate.clientHeight && candidate.querySelector("button"),
-      ) || modal
+  function findSettingsContent(modal, sidebar) {
+    const shell = sidebar?.parentElement;
+    const sibling = Array.from(shell?.children || []).find(
+      (candidate) => candidate !== sidebar && !candidate.contains(sidebar),
     );
+
+    if (sibling) return sibling;
+
+    return Array.from(modal.children).find((candidate) => candidate !== sidebar) || modal;
+  }
+
+  function createLensCategory(sidebar, content) {
+    const category = document.createElement("div");
+    category.dataset.lensSettings = "category";
+
+    const label = cloneCategoryLabel(sidebar);
+    label.dataset.lensSettings = "category-label";
+    label.textContent = "Lens";
+
+    const button = cloneNavButton(sidebar);
+    button.type = "button";
+    button.dataset.lensSettings = "nav";
+    button.textContent = "Plugins";
+    button.addEventListener("click", () => showLensPanel(content, button));
+
+    category.append(label, button);
+    return category;
+  }
+
+  function cloneCategoryLabel(sidebar) {
+    const match = Array.from(sidebar.querySelectorAll("div,span,p,h2,h3,h4")).find((candidate) =>
+      /^(Desktop|Server)$/i.test((candidate.textContent || "").trim()),
+    );
+    return match ? match.cloneNode(false) : document.createElement("div");
+  }
+
+  function cloneNavButton(sidebar) {
+    const match = Array.from(sidebar.querySelectorAll("button")).find((candidate) =>
+      /Shortcuts/i.test(candidate.textContent || ""),
+    );
+    return match ? match.cloneNode(false) : document.createElement("button");
+  }
+
+  function showLensPanel(content, button) {
+    const panel = content.querySelector('[data-lens-settings="panel"]');
+    if (!panel) return;
+
+    Array.from(content.children).forEach((child) => {
+      if (child === panel) return;
+      child.dataset.lensPreviousDisplay = child.style.display;
+      child.style.display = "none";
+    });
+
+    panel.hidden = false;
+    button.setAttribute("aria-current", "page");
+    panel.focus({ preventScroll: true });
+  }
+
+  function restoreSettingsPanel(content) {
+    const panel = content.querySelector('[data-lens-settings="panel"]');
+    if (panel) panel.hidden = true;
+
+    Array.from(content.children).forEach((child) => {
+      if (child === panel) return;
+      if (child.dataset.lensPreviousDisplay !== undefined) {
+        child.style.display = child.dataset.lensPreviousDisplay;
+        delete child.dataset.lensPreviousDisplay;
+      }
+    });
   }
 
   async function renderPluginList(section) {
@@ -474,12 +613,15 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
         const row = document.createElement("label");
         row.dataset.lensSettings = "plugin";
         row.innerHTML = `
-        <span>
+        <span data-lens-settings="plugin-copy">
           <span data-lens-settings="plugin-name"></span>
           <span data-lens-settings="plugin-description"></span>
           <span data-lens-settings="plugin-source"></span>
         </span>
-        <input type="checkbox" />
+        <span data-lens-settings="toggle">
+          <input type="checkbox" role="switch" />
+          <span data-lens-settings="toggle-track"></span>
+        </span>
       `;
         row.querySelector('[data-lens-settings="plugin-name"]').textContent = plugin.name;
         row.querySelector('[data-lens-settings="plugin-description"]').textContent =
