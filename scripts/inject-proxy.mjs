@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const clientScript = readFileSync(resolve(__dirname, "../dist/client.js"), "utf8");
-const injection = `<script>${clientScript}</script>`;
+const injection = `<script type="module">${clientScript}</script>`;
 
 const target = process.env.OPENCODE_TARGET || "http://127.0.0.1:5050";
 const port = parseInt(process.env.PORT || "3000", 10);
@@ -58,6 +58,8 @@ const server = createServer((clientReq, clientRes) => {
 
         const responseHeaders = { ...proxyRes.headers };
         delete responseHeaders["content-length"];
+        delete responseHeaders["content-security-policy"];
+        delete responseHeaders["content-security-policy-report-only"];
         responseHeaders["content-length"] = String(Buffer.byteLength(body, "utf8"));
 
         clientRes.writeHead(proxyRes.statusCode ?? 200, responseHeaders);
