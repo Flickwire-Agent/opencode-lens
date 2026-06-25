@@ -1,12 +1,12 @@
 import type { Plugin } from "./plugin-types.js";
 
-const plugin = (async ({ client }) => {
+const plugin = (async ({ client, serverUrl }) => {
   await client.app.log({
     body: {
       service: "opencode-web-voice-input",
       level: "info",
       message:
-        "Loaded. Install the browser userscript or bookmarklet to add the mic button to OpenCode Web.",
+        "Loaded. Run `pnpm proxy` to auto-inject voice input, or install the userscript/bookmarklet manually.",
     },
   });
 
@@ -18,8 +18,7 @@ const plugin = (async ({ client }) => {
         body: {
           service: "opencode-web-voice-input",
           level: "info",
-          message:
-            "OpenCode Web connected. Browser-side voice input is provided by dist/opencode-web-voice-input.user.js or dist/bookmarklet.txt.",
+          message: `OpenCode Web connected at ${serverUrl.href}. Run 'pnpm proxy' (set OPENCODE_TARGET env) to auto-inject voice input, or use the userscript/bookmarklet.`,
         },
       });
     },

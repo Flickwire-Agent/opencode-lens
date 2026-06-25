@@ -10,6 +10,7 @@ export type PluginContext = {
       }): Promise<void>;
     };
   };
+  serverUrl: URL;
 };
 
 export type PluginEvent = {

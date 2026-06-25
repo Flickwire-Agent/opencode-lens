@@ -40,6 +40,8 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint .",
+    "proxy": "node scripts/inject-proxy.mjs",
+    "start": "node scripts/inject-proxy.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
