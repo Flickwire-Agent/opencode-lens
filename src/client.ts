@@ -73,7 +73,13 @@ function attachWhenReady() {
   button.className = "opencode-web-voice-input-button";
   button.title = "Voice input";
   button.setAttribute("aria-label", "Start voice input");
-  button.textContent = "Mic";
+  button.innerHTML = `
+    <span class="opencode-web-voice-input-sr-only">Voice Input</span>
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" class="opencode-web-voice-input-icon">
+      <path d="M10 2.5a2.5 2.5 0 0 0-2.5 2.5v4a2.5 2.5 0 0 0 5 0v-4A2.5 2.5 0 0 0 10 2.5Z" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M5 8.5a5 5 0 0 0 10 0M10 13.5v4M7.5 17.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+  `;
   button.addEventListener("click", toggleRecognition);
 
   if (actions) {
@@ -182,7 +188,6 @@ function updateButton() {
   if (!state.button) return;
 
   state.button.classList.toggle("is-listening", state.active);
-  state.button.textContent = state.active ? "Stop" : "Mic";
   state.button.setAttribute("aria-label", state.active ? "Stop voice input" : "Start voice input");
 }
 
@@ -208,15 +213,17 @@ function injectStyle() {
   state.style = document.createElement("style");
   state.style.textContent = `
     .opencode-web-voice-input-button {
-      height: 28px;
-      min-width: 34px;
+      width: 32px;
+      height: 32px;
       border: 0;
-      border-radius: 6px;
-      padding: 0 8px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      padding: 0;
       background: transparent;
       color: currentColor;
-      font: inherit;
-      font-size: 12px;
       cursor: pointer;
       opacity: 0.75;
     }
@@ -229,6 +236,21 @@ function injectStyle() {
     .opencode-web-voice-input-button.is-listening {
       color: #ef4444;
       opacity: 1;
+    }
+    .opencode-web-voice-input-icon {
+      width: 20px;
+      height: 20px;
+    }
+    .opencode-web-voice-input-sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+      padding: 0;
     }
     .opencode-web-voice-input-status {
       position: fixed;
