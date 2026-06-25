@@ -3,3 +3,4 @@ dist/
 .turbo/
 .DS_Store
 *.log
+.lens-state.json

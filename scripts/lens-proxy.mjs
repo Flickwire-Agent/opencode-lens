@@ -1,16 +1,20 @@
-import { existsSync, readFileSync } from "node:fs";
+#!/usr/bin/env node
+
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, request } from "node:http";
 import { connect } from "node:net";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { basename, dirname, isAbsolute, resolve } from "node:path";
 
 const cwd = process.cwd();
 const target = process.env.OPENCODE_TARGET || "http://127.0.0.1:5050";
 const port = parseInt(process.env.PORT || "3000", 10);
 const configPath = process.env.LENS_CONFIG || "lens.config.json";
+const statePath = process.env.LENS_STATE || ".lens-state.json";
 const pluginSpecs = readPluginSpecs();
-const injections = await Promise.all(pluginSpecs.map(loadPlugin));
+const plugins = pluginSpecs.map(normalizePluginSpec).map(loadPlugin);
+const state = readState();
 
-if (injections.length === 0) {
+if (plugins.length === 0) {
   console.warn(
     "Lens started with no plugins. Set OPENCODE_WEB_PLUGINS or create lens.config.json.",
   );
@@ -22,7 +26,12 @@ const targetPort = parseInt(targetUrl.port || (targetUrl.protocol === "https:" ?
 const INJECT_HEAD = "</head>";
 const INJECT_BODY = "</body>";
 
-const server = createServer((clientReq, clientRes) => {
+const server = createServer(async (clientReq, clientRes) => {
+  if (clientReq.url?.startsWith("/__lens/")) {
+    await handleLensRequest(clientReq, clientRes);
+    return;
+  }
+
   const headers = { ...clientReq.headers };
   delete headers["accept-encoding"];
   delete headers.host;
@@ -50,7 +59,7 @@ const server = createServer((clientReq, clientRes) => {
         body += chunk.toString("utf8");
       });
       proxyRes.on("end", () => {
-        body = inject(body, injections.join("\n"));
+        body = inject(body, getEnabledInjections());
 
         const responseHeaders = { ...proxyRes.headers };
         delete responseHeaders["content-length"];
@@ -98,7 +107,7 @@ server.on("upgrade", (clientReq, clientSocket, clientHead) => {
 
 server.listen(port, "127.0.0.1", () => {
   console.log(`Lens ready: http://127.0.0.1:${port} -> ${target}`);
-  console.log(`Loaded ${injections.length} plugin${injections.length === 1 ? "" : "s"}.`);
+  console.log(`Registered ${plugins.length} plugin${plugins.length === 1 ? "" : "s"}.`);
 });
 
 function readPluginSpecs() {
@@ -118,20 +127,30 @@ function readPluginSpecs() {
   return config.plugins;
 }
 
-async function loadPlugin(spec) {
-  if (typeof spec === "string") {
-    return spec.startsWith("http://") || spec.startsWith("https://")
-      ? `<script type="module" src="${escapeAttribute(spec)}"></script>`
-      : loadLocalPlugin(spec, cwd);
-  }
+function normalizePluginSpec(spec) {
+  if (typeof spec === "string") return { source: spec };
 
   if (!spec || typeof spec !== "object") {
     throw new Error("Plugin entries must be strings or objects.");
   }
 
-  if (spec.path) return loadLocalPlugin(spec.path, cwd);
-  if (spec.url) return `<script type="module" src="${escapeAttribute(spec.url)}"></script>`;
-  return pluginManifestToHtml(spec, cwd);
+  return { ...spec, source: spec.path || spec.url };
+}
+
+function loadPlugin(spec) {
+  const loaded = spec.source
+    ? spec.source.startsWith("http://") || spec.source.startsWith("https://")
+      ? remotePlugin(spec)
+      : loadLocalPlugin(spec.source, cwd)
+    : manifestPlugin(spec, cwd);
+
+  return {
+    ...loaded,
+    id: spec.id || loaded.id,
+    name: spec.name || loaded.name,
+    description: spec.description || loaded.description || "",
+    enabledByDefault: spec.enabled !== false,
+  };
 }
 
 function loadLocalPlugin(path, baseDir) {
@@ -139,18 +158,40 @@ function loadLocalPlugin(path, baseDir) {
   const contents = readFileSync(resolved, "utf8");
 
   if (resolved.endsWith(".json")) {
-    return pluginManifestToHtml(JSON.parse(contents), dirname(resolved));
+    return manifestPlugin(JSON.parse(contents), dirname(resolved), resolved);
   }
 
-  return `<script type="module">\n${contents}\n</script>`;
+  return {
+    id: slugify(path),
+    name: readableName(path),
+    description: "",
+    source: path,
+    html: `<script type="module">\n${contents}\n</script>`,
+  };
 }
 
-function pluginManifestToHtml(plugin, baseDir) {
-  const name = plugin.name || "unnamed plugin";
+function remotePlugin(plugin) {
+  return {
+    id: slugify(plugin.source),
+    name: plugin.name || readableName(plugin.source),
+    description: plugin.description || "",
+    source: plugin.source,
+    html: `<script type="module" src="${escapeAttribute(plugin.source)}"></script>`,
+  };
+}
+
+function manifestPlugin(plugin, baseDir, source = "inline") {
+  const name = plugin.name || readableName(source);
   const html = typeof plugin.html === "string" ? plugin.html : "";
   const script = plugin.script ? readFileSync(resolvePath(plugin.script, baseDir), "utf8") : "";
 
-  return `<!-- Lens plugin: ${escapeComment(name)} -->\n${html}\n${script ? `<script type="module">\n${script}\n</script>` : ""}`;
+  return {
+    id: plugin.id || slugify(name),
+    name,
+    description: plugin.description || "",
+    source,
+    html: `<!-- Lens plugin: ${escapeComment(name)} -->\n${html}\n${script ? `<script type="module">\n${script}\n</script>` : ""}`,
+  };
 }
 
 function resolvePath(path, baseDir) {
@@ -164,6 +205,109 @@ function inject(body, injection) {
   return `${body}${injection}`;
 }
 
+function getEnabledInjections() {
+  return [
+    settingsPanelScript(),
+    ...plugins.filter(isPluginEnabled).map((plugin) => plugin.html),
+  ].join("\n");
+}
+
+function isPluginEnabled(plugin) {
+  return state.plugins?.[plugin.id]?.enabled ?? plugin.enabledByDefault;
+}
+
+function readState() {
+  const resolvedState = resolve(cwd, statePath);
+  if (!existsSync(resolvedState)) return { plugins: {} };
+  return JSON.parse(readFileSync(resolvedState, "utf8"));
+}
+
+function writeState() {
+  writeFileSync(resolve(cwd, statePath), `${JSON.stringify(state, null, 2)}\n`);
+}
+
+async function handleLensRequest(req, res) {
+  const url = new URL(req.url, `http://127.0.0.1:${port}`);
+
+  if (req.method === "GET" && url.pathname === "/__lens/plugins") {
+    sendJson(res, {
+      plugins: plugins.map((plugin) => ({
+        id: plugin.id,
+        name: plugin.name,
+        description: plugin.description,
+        source: plugin.source,
+        enabled: isPluginEnabled(plugin),
+      })),
+    });
+    return;
+  }
+
+  const toggleMatch = url.pathname.match(/^\/__lens\/plugins\/([^/]+)$/);
+  if (req.method === "POST" && toggleMatch) {
+    const body = await readRequestBody(req);
+    const plugin = plugins.find((candidate) => candidate.id === decodeURIComponent(toggleMatch[1]));
+    if (!plugin) {
+      sendJson(res, { error: "Plugin not found" }, 404);
+      return;
+    }
+
+    state.plugins ||= {};
+    state.plugins[plugin.id] = { enabled: Boolean(JSON.parse(body || "{}").enabled) };
+    writeState();
+    sendJson(res, { ok: true });
+    return;
+  }
+
+  sendJson(res, { error: "Not found" }, 404);
+}
+
+function readRequestBody(req) {
+  return new Promise((resolveBody, reject) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk.toString("utf8");
+    });
+    req.on("end", () => resolveBody(body));
+    req.on("error", reject);
+  });
+}
+
+function sendJson(res, body, status = 200) {
+  const json = JSON.stringify(body);
+  res.writeHead(status, {
+    "content-type": "application/json; charset=utf-8",
+    "content-length": String(Buffer.byteLength(json, "utf8")),
+  });
+  res.end(json);
+}
+
+function settingsPanelScript() {
+  return `<script type="module">\n${LENS_SETTINGS_CLIENT}\n</script>`;
+}
+
+function slugify(value) {
+  return (
+    String(value)
+      .replace(/^https?:\/\//, "")
+      .replace(/\.[cm]?js(on)?$/i, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "plugin"
+  );
+}
+
+function readableName(value) {
+  const path = String(value);
+  const file = basename(path).replace(/\.[cm]?js(on)?$/i, "");
+  const parent = basename(dirname(path));
+  const name = ["index", "plugin", "client"].includes(file)
+    ? parent === "dist"
+      ? basename(dirname(dirname(path)))
+      : parent
+    : file;
+  return name || "Plugin";
+}
+
 function escapeAttribute(value) {
   return String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
 }
@@ -171,3 +315,195 @@ function escapeAttribute(value) {
 function escapeComment(value) {
   return String(value).replaceAll("--", "-");
 }
+
+const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
+  const STATE_KEY = "__opencodeLensSettings";
+  const lensWindow = window;
+
+  lensWindow[STATE_KEY]?.cleanup?.();
+
+  const observer = new MutationObserver(attachLensSettings);
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  attachLensSettings();
+
+  lensWindow[STATE_KEY] = {
+    cleanup() {
+      observer.disconnect();
+      document.querySelectorAll("[data-lens-settings]").forEach((element) => element.remove());
+    },
+  };
+
+  function attachLensSettings() {
+    const modal = findSettingsModal();
+    if (!modal || modal.querySelector("[data-lens-settings=section]")) return;
+
+    const nav = findSettingsNav(modal);
+    const section = document.createElement("section");
+    section.dataset.lensSettings = "section";
+    section.tabIndex = -1;
+    section.innerHTML = `
+    <style>
+      [data-lens-settings="section"] {
+        margin-top: 16px;
+        border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+        padding-top: 16px;
+      }
+      [data-lens-settings="header"] {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      [data-lens-settings="title"] {
+        margin: 0;
+        font: 600 14px/1.2 system-ui, sans-serif;
+      }
+      [data-lens-settings="hint"] {
+        margin: 0 0 12px;
+        color: color-mix(in srgb, currentColor 68%, transparent);
+        font: 12px/1.4 system-ui, sans-serif;
+      }
+      [data-lens-settings="list"] {
+        display: grid;
+        gap: 8px;
+      }
+      [data-lens-settings="plugin"] {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      [data-lens-settings="plugin-name"] {
+        font: 500 13px/1.3 system-ui, sans-serif;
+      }
+      [data-lens-settings="plugin-source"] {
+        max-width: 42ch;
+        overflow: hidden;
+        color: color-mix(in srgb, currentColor 58%, transparent);
+        font: 11px/1.3 ui-monospace, monospace;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      [data-lens-settings="plugin-description"] {
+        margin-top: 3px;
+        color: color-mix(in srgb, currentColor 68%, transparent);
+        font: 12px/1.35 system-ui, sans-serif;
+      }
+      [data-lens-settings="reload"] {
+        border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: 12px/1 system-ui, sans-serif;
+      }
+    </style>
+    <div data-lens-settings="header">
+      <h2 data-lens-settings="title">Lens Plugins</h2>
+      <button type="button" data-lens-settings="reload">Reload UI</button>
+    </div>
+    <p data-lens-settings="hint">Enable or disable plugins, then reload OpenCode Web to apply the current set.</p>
+    <div data-lens-settings="list">Loading plugins...</div>
+  `;
+
+    findSettingsContent(modal).appendChild(section);
+    section
+      .querySelector('[data-lens-settings="reload"]')
+      ?.addEventListener("click", () => location.reload());
+
+    if (nav) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.lensSettings = "nav";
+      button.textContent = "Lens Plugins";
+      button.addEventListener("click", () => {
+        section.scrollIntoView({ block: "start", behavior: "smooth" });
+        section.focus({ preventScroll: true });
+      });
+      nav.appendChild(button);
+    }
+
+    renderPluginList(section);
+  }
+
+  function findSettingsModal() {
+    const candidates = Array.from(
+      document.querySelectorAll('dialog,[role="dialog"],[data-state="open"],.modal'),
+    );
+    return candidates.find((candidate) => /settings/i.test(candidate.textContent || ""));
+  }
+
+  function findSettingsNav(modal) {
+    return (
+      modal.querySelector('nav,[role="tablist"]') ||
+      Array.from(modal.querySelectorAll("div,aside,section")).find(
+        (candidate) => candidate.querySelectorAll("button").length >= 2,
+      )
+    );
+  }
+
+  function findSettingsContent(modal) {
+    return (
+      Array.from(modal.querySelectorAll("main,section,div")).find(
+        (candidate) =>
+          candidate.scrollHeight > candidate.clientHeight && candidate.querySelector("button"),
+      ) || modal
+    );
+  }
+
+  async function renderPluginList(section) {
+    const list = section.querySelector('[data-lens-settings="list"]');
+    if (!list) return;
+
+    try {
+      const response = await fetch("/__lens/plugins");
+      const data = await response.json();
+      list.textContent = "";
+
+      if (!data.plugins?.length) {
+        list.textContent = "No plugins are registered with Lens.";
+        return;
+      }
+
+      for (const plugin of data.plugins) {
+        const row = document.createElement("label");
+        row.dataset.lensSettings = "plugin";
+        row.innerHTML = `
+        <span>
+          <span data-lens-settings="plugin-name"></span>
+          <span data-lens-settings="plugin-description"></span>
+          <span data-lens-settings="plugin-source"></span>
+        </span>
+        <input type="checkbox" />
+      `;
+        row.querySelector('[data-lens-settings="plugin-name"]').textContent = plugin.name;
+        row.querySelector('[data-lens-settings="plugin-description"]').textContent =
+          plugin.description || "No description provided.";
+        row.querySelector('[data-lens-settings="plugin-source"]').textContent =
+          plugin.source || plugin.id;
+
+        const checkbox = row.querySelector("input");
+        checkbox.checked = plugin.enabled;
+        checkbox.addEventListener("change", async () => {
+          checkbox.disabled = true;
+          await fetch("/__lens/plugins/" + encodeURIComponent(plugin.id), {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ enabled: checkbox.checked }),
+          });
+          location.reload();
+        });
+
+        list.appendChild(row);
+      }
+    } catch (error) {
+      list.textContent = "Lens settings failed to load.";
+      console.error(error);
+    }
+  }
+}.toString()})();`;
