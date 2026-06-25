@@ -342,7 +342,7 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
     if (!sidebar || !content) return;
 
     if (!modal.querySelector('[data-lens-settings="category"]')) {
-      sidebar.appendChild(createLensCategory(sidebar, content));
+      insertLensCategory(sidebar, createLensCategory(sidebar, content));
     }
 
     if (content.querySelector('[data-lens-settings="panel"]')) return;
@@ -360,8 +360,6 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
         margin: 0 0 6px;
         color: color-mix(in srgb, currentColor 54%, transparent);
         font: 600 11px/1.2 system-ui, sans-serif;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
       }
       [data-lens-settings="nav"] {
         width: 100%;
@@ -517,18 +515,55 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
   }
 
   function findSettingsSidebar(modal) {
+    const modalRect = modal.getBoundingClientRect();
     const candidates = Array.from(modal.querySelectorAll('aside,nav,[role="tablist"],div'));
-    return candidates.find((candidate) => {
+    const matches = candidates.filter((candidate) => {
       const text = candidate.textContent || "";
-      return /Desktop/i.test(text) && /Server/i.test(text) && candidate.querySelector("button");
+      const rect = candidate.getBoundingClientRect();
+      return (
+        /Desktop/i.test(text) &&
+        /Server/i.test(text) &&
+        candidate.querySelector("button") &&
+        rect.width > 120 &&
+        rect.width < modalRect.width * 0.55 &&
+        rect.height > modalRect.height * 0.45
+      );
     });
+
+    if (matches.length > 0) {
+      return matches.sort(
+        (a, b) => a.getBoundingClientRect().width - b.getBoundingClientRect().width,
+      )[0];
+    }
+
+    const desktopLabel = Array.from(modal.querySelectorAll("div,span,p,h2,h3,h4")).find(
+      (candidate) => /Desktop/i.test((candidate.textContent || "").trim()),
+    );
+
+    let current = desktopLabel?.parentElement;
+    while (current && current !== modal) {
+      const text = current.textContent || "";
+      const rect = current.getBoundingClientRect();
+      if (
+        /Server/i.test(text) &&
+        current.querySelector("button") &&
+        rect.width < modalRect.width * 0.55
+      ) {
+        return current;
+      }
+      current = current.parentElement;
+    }
   }
 
   function findSettingsContent(modal, sidebar) {
     const shell = sidebar?.parentElement;
-    const sibling = Array.from(shell?.children || []).find(
-      (candidate) => candidate !== sidebar && !candidate.contains(sidebar),
-    );
+    const sidebarRect = sidebar?.getBoundingClientRect();
+    const sibling = Array.from(shell?.children || [])
+      .filter((candidate) => candidate !== sidebar && !candidate.contains(sidebar))
+      .find((candidate) => {
+        const rect = candidate.getBoundingClientRect();
+        return !sidebarRect || rect.left >= sidebarRect.right - 2;
+      });
 
     if (sibling) return sibling;
 
@@ -551,6 +586,14 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
 
     category.append(label, button);
     return category;
+  }
+
+  function insertLensCategory(sidebar, category) {
+    const footer = Array.from(sidebar.children).find((candidate) =>
+      /OpenCode Desktop/i.test(candidate.textContent || ""),
+    );
+
+    sidebar.insertBefore(category, footer || null);
   }
 
   function cloneCategoryLabel(sidebar) {
