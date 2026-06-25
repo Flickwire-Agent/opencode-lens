@@ -62,7 +62,7 @@ function main() {
 
 function attachWhenReady() {
   const form = document.querySelector<HTMLElement>(
-    '[data-component="session-composer"], [data-component="session-new-composer"]',
+    '[data-component="session-composer"], [data-component="session-new-composer"], [data-component="session-prompt-dock"]',
   );
   if (!form || form.querySelector("[data-opencode-voice-input]")) return;
 
