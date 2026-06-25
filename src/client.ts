@@ -133,17 +133,17 @@ function toggleRecognition() {
     );
   };
   state.recognition.onresult = (event) => {
-    const parts = Array.from(event.results).slice(event.resultIndex);
-    const final = parts
+    const results = Array.from(event.results);
+    const final = results
       .filter((result) => result.isFinal)
       .map((result) => result[0]?.transcript ?? "")
       .join("");
-    const interim = parts
+    const interim = results
       .filter((result) => !result.isFinal)
       .map((result) => result[0]?.transcript ?? "")
       .join("");
 
-    state.finalText += final;
+    state.finalText = final;
     state.interimText = interim;
     showStatus((state.finalText + state.interimText).trim() || "Listening...");
   };
