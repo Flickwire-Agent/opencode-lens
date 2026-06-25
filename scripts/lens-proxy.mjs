@@ -365,6 +365,9 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
       [data-lens-settings="panel"] {
         display: grid;
         gap: 14px;
+        box-sizing: border-box;
+        min-height: 100%;
+        padding: 24px;
       }
       [data-lens-settings="panel"][hidden] {
         display: none !important;
@@ -574,7 +577,7 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
     const button = cloneNavButton(sidebar);
     button.type = "button";
     button.dataset.lensSettings = "nav";
-    button.textContent = "Plugins";
+    setPuzzleIcon(button);
     replaceButtonLabel(button, "Plugins");
     button.addEventListener("click", (event) => {
       event.preventDefault();
@@ -649,6 +652,35 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
     button.textContent = label;
   }
 
+  function setPuzzleIcon(button) {
+    const icon = createPuzzleIcon();
+    const currentIcon = button.querySelector("svg");
+    if (currentIcon) {
+      for (const attribute of ["class", "style", "width", "height"]) {
+        const value = currentIcon.getAttribute(attribute);
+        if (value) icon.setAttribute(attribute, value);
+      }
+      currentIcon.replaceWith(icon);
+      return;
+    }
+
+    button.prepend(icon);
+  }
+
+  function createPuzzleIcon() {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    svg.setAttribute("aria-hidden", "true");
+    svg.innerHTML =
+      '<path d="M14 7V5a2 2 0 0 0-4 0v2H7a2 2 0 0 0-2 2v3h2a2 2 0 1 1 0 4H5v3a2 2 0 0 0 2 2h3v-2a2 2 0 1 1 4 0v2h3a2 2 0 0 0 2-2v-3h-2a2 2 0 1 1 0-4h2V9a2 2 0 0 0-2-2h-3Z" />';
+    return svg;
+  }
+
   function showLensPanel(sidebar, content, button) {
     const panel = ensureLensPanel(content);
     if (!panel) return;
@@ -701,6 +733,9 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
       [data-lens-settings="panel"] {
         display: grid;
         gap: 14px;
+        box-sizing: border-box;
+        min-height: 100%;
+        padding: 24px;
       }
       [data-lens-settings="panel"][hidden] {
         display: none !important;
@@ -844,17 +879,20 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
     if (active instanceof HTMLElement) {
       lensButton.className = active.className;
       lensButton.dataset.lensActiveClass = active.className;
-      active.removeAttribute("aria-current");
-      active.setAttribute("aria-selected", "false");
     }
 
     if (inactive instanceof HTMLElement) {
       for (const button of sidebar.querySelectorAll("button")) {
         if (button !== lensButton && isSelectedButton(button)) {
-          button.className = inactive.className;
+          clearButtonSelection(button, inactive.className);
         }
       }
     }
+
+    lensButton.setAttribute("aria-current", "page");
+    lensButton.setAttribute("aria-selected", "true");
+    lensButton.dataset.selected = "true";
+    lensButton.dataset.active = "true";
   }
 
   function setLensSelected(sidebar, selected) {
@@ -869,9 +907,19 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
 
     button.removeAttribute("aria-current");
     button.setAttribute("aria-selected", "false");
+    delete button.dataset.selected;
+    delete button.dataset.active;
     if (button.dataset.lensInactiveClass !== undefined) {
       button.className = button.dataset.lensInactiveClass;
     }
+  }
+
+  function clearButtonSelection(button, inactiveClass) {
+    button.removeAttribute("aria-current");
+    button.setAttribute("aria-selected", "false");
+    delete button.dataset.selected;
+    delete button.dataset.active;
+    if (button instanceof HTMLElement) button.className = inactiveClass;
   }
 
   function isSelectedButton(button) {
