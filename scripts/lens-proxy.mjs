@@ -364,51 +364,50 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
       }
       [data-lens-settings="panel"] {
         display: grid;
-        gap: 14px;
+        align-content: start;
+        gap: 20px;
         box-sizing: border-box;
         min-height: 100%;
-        padding: 24px;
+        padding: 16px 18px;
       }
       [data-lens-settings="panel"][hidden] {
         display: none !important;
       }
       [data-lens-settings="header"] {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 10px;
+        display: block;
       }
       [data-lens-settings="title"] {
         margin: 0;
         font: 600 18px/1.2 system-ui, sans-serif;
       }
       [data-lens-settings="hint"] {
+        display: none;
         margin: 0;
         color: color-mix(in srgb, currentColor 68%, transparent);
         font: 12px/1.4 system-ui, sans-serif;
       }
       [data-lens-settings="list"] {
         display: grid;
-        gap: 8px;
+        gap: 0;
       }
       [data-lens-settings="plugin"] {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
-        gap: 12px;
-        border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
-        border-radius: 10px;
-        padding: 10px 12px;
+        gap: 18px;
+        border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+        padding: 18px 0;
       }
       [data-lens-settings="plugin-copy"] {
         display: grid;
         min-width: 0;
       }
       [data-lens-settings="plugin-name"] {
-        font: 500 13px/1.3 system-ui, sans-serif;
+        color: color-mix(in srgb, currentColor 92%, transparent);
+        font: 600 15px/1.35 system-ui, sans-serif;
       }
       [data-lens-settings="plugin-source"] {
+        display: none;
         max-width: 42ch;
         overflow: hidden;
         color: color-mix(in srgb, currentColor 58%, transparent);
@@ -417,17 +416,18 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
         white-space: nowrap;
       }
       [data-lens-settings="plugin-description"] {
-        margin-top: 3px;
-        color: color-mix(in srgb, currentColor 68%, transparent);
-        font: 12px/1.35 system-ui, sans-serif;
+        margin-top: 4px;
+        color: color-mix(in srgb, currentColor 54%, transparent);
+        font: 14px/1.45 system-ui, sans-serif;
       }
       [data-lens-settings="toggle"] {
         position: relative;
         display: inline-flex;
-        width: 38px;
-        height: 22px;
+        min-width: 38px;
+        min-height: 22px;
         flex: 0 0 auto;
         align-items: center;
+        margin-top: 2px;
       }
       [data-lens-settings="toggle"] input {
         position: absolute;
@@ -437,10 +437,11 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
         cursor: pointer;
       }
       [data-lens-settings="toggle-track"] {
-        width: 100%;
-        height: 100%;
-        border-radius: 999px;
-        background: color-mix(in srgb, currentColor 18%, transparent);
+        width: 38px;
+        height: 22px;
+        border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+        border-radius: 6px;
+        background: color-mix(in srgb, canvas 82%, currentColor 8%);
         transition: background 120ms ease;
       }
       [data-lens-settings="toggle-track"]::after {
@@ -450,13 +451,13 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
         left: 3px;
         width: 16px;
         height: 16px;
-        border-radius: 999px;
-        background: canvas;
-        box-shadow: 0 1px 3px rgb(0 0 0 / 25%);
+        border-radius: 4px;
+        background: color-mix(in srgb, currentColor 42%, transparent);
+        box-shadow: none;
         transition: transform 120ms ease;
       }
       [data-lens-settings="toggle"] input:checked + [data-lens-settings="toggle-track"] {
-        background: #22c55e;
+        background: color-mix(in srgb, currentColor 14%, transparent);
       }
       [data-lens-settings="toggle"] input:checked + [data-lens-settings="toggle-track"]::after {
         transform: translateX(16px);
@@ -473,7 +474,6 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
     </style>
     <div data-lens-settings="header">
       <h2 data-lens-settings="title">Plugins</h2>
-      <button type="button" data-lens-settings="reload">Reload UI</button>
     </div>
     <p data-lens-settings="hint">Enable or disable plugins, then reload OpenCode Web to apply the current set.</p>
     <div data-lens-settings="list">Loading plugins...</div>
@@ -732,51 +732,50 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
       }
       [data-lens-settings="panel"] {
         display: grid;
-        gap: 14px;
+        align-content: start;
+        gap: 20px;
         box-sizing: border-box;
         min-height: 100%;
-        padding: 24px;
+        padding: 16px 18px;
       }
       [data-lens-settings="panel"][hidden] {
         display: none !important;
       }
       [data-lens-settings="header"] {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 10px;
+        display: block;
       }
       [data-lens-settings="title"] {
         margin: 0;
         font: 600 18px/1.2 system-ui, sans-serif;
       }
       [data-lens-settings="hint"] {
+        display: none;
         margin: 0;
         color: color-mix(in srgb, currentColor 68%, transparent);
         font: 12px/1.4 system-ui, sans-serif;
       }
       [data-lens-settings="list"] {
         display: grid;
-        gap: 8px;
+        gap: 0;
       }
       [data-lens-settings="plugin"] {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
-        gap: 12px;
-        border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
-        border-radius: 10px;
-        padding: 10px 12px;
+        gap: 18px;
+        border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+        padding: 18px 0;
       }
       [data-lens-settings="plugin-copy"] {
         display: grid;
         min-width: 0;
       }
       [data-lens-settings="plugin-name"] {
-        font: 500 13px/1.3 system-ui, sans-serif;
+        color: color-mix(in srgb, currentColor 92%, transparent);
+        font: 600 15px/1.35 system-ui, sans-serif;
       }
       [data-lens-settings="plugin-source"] {
+        display: none;
         max-width: 42ch;
         overflow: hidden;
         color: color-mix(in srgb, currentColor 58%, transparent);
@@ -785,17 +784,18 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
         white-space: nowrap;
       }
       [data-lens-settings="plugin-description"] {
-        margin-top: 3px;
-        color: color-mix(in srgb, currentColor 68%, transparent);
-        font: 12px/1.35 system-ui, sans-serif;
+        margin-top: 4px;
+        color: color-mix(in srgb, currentColor 54%, transparent);
+        font: 14px/1.45 system-ui, sans-serif;
       }
       [data-lens-settings="toggle"] {
         position: relative;
         display: inline-flex;
-        width: 38px;
-        height: 22px;
+        min-width: 38px;
+        min-height: 22px;
         flex: 0 0 auto;
         align-items: center;
+        margin-top: 2px;
       }
       [data-lens-settings="toggle"] input {
         position: absolute;
@@ -805,10 +805,11 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
         cursor: pointer;
       }
       [data-lens-settings="toggle-track"] {
-        width: 100%;
-        height: 100%;
-        border-radius: 999px;
-        background: color-mix(in srgb, currentColor 18%, transparent);
+        width: 38px;
+        height: 22px;
+        border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+        border-radius: 6px;
+        background: color-mix(in srgb, canvas 82%, currentColor 8%);
         transition: background 120ms ease;
       }
       [data-lens-settings="toggle-track"]::after {
@@ -818,13 +819,13 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
         left: 3px;
         width: 16px;
         height: 16px;
-        border-radius: 999px;
-        background: canvas;
-        box-shadow: 0 1px 3px rgb(0 0 0 / 25%);
+        border-radius: 4px;
+        background: color-mix(in srgb, currentColor 42%, transparent);
+        box-shadow: none;
         transition: transform 120ms ease;
       }
       [data-lens-settings="toggle"] input:checked + [data-lens-settings="toggle-track"] {
-        background: #22c55e;
+        background: color-mix(in srgb, currentColor 14%, transparent);
       }
       [data-lens-settings="toggle"] input:checked + [data-lens-settings="toggle-track"]::after {
         transform: translateX(16px);
@@ -841,7 +842,6 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
     </style>
     <div data-lens-settings="header">
       <h2 data-lens-settings="title">Plugins</h2>
-      <button type="button" data-lens-settings="reload">Reload UI</button>
     </div>
     <p data-lens-settings="hint">Enable or disable plugins, then reload OpenCode Web to apply the current set.</p>
     <div data-lens-settings="list">Loading plugins...</div>
@@ -965,10 +965,6 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
           <span data-lens-settings="plugin-description"></span>
           <span data-lens-settings="plugin-source"></span>
         </span>
-        <span data-lens-settings="toggle">
-          <input type="checkbox" role="switch" />
-          <span data-lens-settings="toggle-track"></span>
-        </span>
       `;
         row.querySelector('[data-lens-settings="plugin-name"]').textContent = plugin.name;
         row.querySelector('[data-lens-settings="plugin-description"]').textContent =
@@ -976,9 +972,10 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
         row.querySelector('[data-lens-settings="plugin-source"]').textContent =
           plugin.source || plugin.id;
 
-        const checkbox = row.querySelector("input");
+        const checkbox = createPluginSwitch();
+        row.appendChild(checkbox.label);
         checkbox.checked = plugin.enabled;
-        checkbox.addEventListener("change", async () => {
+        checkbox.onChange = async () => {
           checkbox.disabled = true;
           await fetch("/__lens/plugins/" + encodeURIComponent(plugin.id), {
             method: "POST",
@@ -986,7 +983,7 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
             body: JSON.stringify({ enabled: checkbox.checked }),
           });
           location.reload();
-        });
+        };
 
         list.appendChild(row);
       }
@@ -994,5 +991,98 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
       list.textContent = "Lens settings failed to load.";
       console.error(error);
     }
+  }
+
+  function createPluginSwitch() {
+    const nativeSwitch = cloneAutoAcceptSwitch();
+    const label = document.createElement("span");
+    label.dataset.lensSettings = "toggle";
+
+    if (nativeSwitch) {
+      label.appendChild(nativeSwitch);
+      const control = nativeSwitch.matches('input,button,[role="switch"]')
+        ? nativeSwitch
+        : nativeSwitch.querySelector('input,button,[role="switch"]');
+
+      const api = {
+        label,
+        get checked() {
+          return getSwitchChecked(control);
+        },
+        set checked(value) {
+          setSwitchChecked(control, value);
+        },
+        set disabled(value) {
+          setSwitchDisabled(control, value);
+        },
+        onChange: undefined,
+      };
+
+      nativeSwitch.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        api.checked = !api.checked;
+        api.onChange?.();
+      });
+
+      return api;
+    }
+
+    label.innerHTML = `
+      <input type="checkbox" role="switch" />
+      <span data-lens-settings="toggle-track"></span>
+    `;
+
+    const input = label.querySelector("input");
+    const api = {
+      label,
+      get checked() {
+        return input.checked;
+      },
+      set checked(value) {
+        input.checked = value;
+      },
+      set disabled(value) {
+        input.disabled = value;
+      },
+      onChange: undefined,
+    };
+
+    input.addEventListener("change", () => api.onChange?.());
+    return api;
+  }
+
+  function cloneAutoAcceptSwitch() {
+    const heading = Array.from(document.querySelectorAll("div,span,p,h2,h3,h4,label")).find(
+      (candidate) => /Auto-accept permissions/i.test(candidate.textContent || ""),
+    );
+    let current = heading?.parentElement;
+
+    while (current && current !== document.body) {
+      const control = current.querySelector('input[type="checkbox"],button,[role="switch"]');
+      if (control) return control.cloneNode(true);
+      current = current.parentElement;
+    }
+  }
+
+  function getSwitchChecked(control) {
+    if (control instanceof HTMLInputElement) return control.checked;
+    return control?.getAttribute("aria-checked") === "true" || control?.dataset.state === "checked";
+  }
+
+  function setSwitchChecked(control, checked) {
+    if (!control) return;
+    if (control instanceof HTMLInputElement) control.checked = checked;
+    control.setAttribute("aria-checked", String(checked));
+    control.dataset.state = checked ? "checked" : "unchecked";
+    control.toggleAttribute("checked", checked);
+  }
+
+  function setSwitchDisabled(control, disabled) {
+    if (!control) return;
+    if (control instanceof HTMLInputElement || control instanceof HTMLButtonElement) {
+      control.disabled = disabled;
+    }
+    control.setAttribute("aria-disabled", String(disabled));
   }
 }.toString()})();`;
