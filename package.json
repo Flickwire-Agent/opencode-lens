@@ -43,6 +43,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "oxfmt": "0.55.0",
     "oxlint": "latest",
     "typescript": "latest"
   },
