@@ -579,7 +579,15 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      showLensPanel(sidebar, content, button);
+      const currentModal = findSettingsModal();
+      const currentSidebar = currentModal ? findSettingsSidebar(currentModal) : sidebar;
+      const currentContent = currentModal
+        ? findSettingsContent(currentModal, currentSidebar)
+        : content;
+      if (!currentSidebar || !currentContent) return;
+
+      ensureLensPanel(currentContent);
+      showLensPanel(currentSidebar, currentContent, button);
     });
 
     category.append(label, button);
@@ -642,7 +650,7 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
   }
 
   function showLensPanel(sidebar, content, button) {
-    const panel = content.querySelector('[data-lens-settings="panel"]');
+    const panel = ensureLensPanel(content);
     if (!panel) return;
 
     syncNativeSelection(sidebar, button);
@@ -659,6 +667,157 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
     button.setAttribute("aria-current", "page");
     button.setAttribute("aria-selected", "true");
     panel.focus({ preventScroll: true });
+  }
+
+  function ensureLensPanel(content) {
+    let panel = content.querySelector('[data-lens-settings="panel"]');
+    if (panel) return panel;
+
+    panel = document.querySelector('[data-lens-settings="panel"]');
+    if (panel) {
+      content.appendChild(panel);
+      return panel;
+    }
+
+    return createLensPanel(content);
+  }
+
+  function createLensPanel(content) {
+    const section = document.createElement("section");
+    section.dataset.lensSettings = "panel";
+    section.hidden = true;
+    section.tabIndex = -1;
+    section.innerHTML = `
+    <style>
+      [data-lens-settings="category"] {
+        margin-top: 0;
+      }
+      [data-lens-settings="category-label"] {
+        pointer-events: none;
+      }
+      [data-lens-settings="nav"] {
+        cursor: pointer;
+      }
+      [data-lens-settings="panel"] {
+        display: grid;
+        gap: 14px;
+      }
+      [data-lens-settings="panel"][hidden] {
+        display: none !important;
+      }
+      [data-lens-settings="header"] {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      [data-lens-settings="title"] {
+        margin: 0;
+        font: 600 18px/1.2 system-ui, sans-serif;
+      }
+      [data-lens-settings="hint"] {
+        margin: 0;
+        color: color-mix(in srgb, currentColor 68%, transparent);
+        font: 12px/1.4 system-ui, sans-serif;
+      }
+      [data-lens-settings="list"] {
+        display: grid;
+        gap: 8px;
+      }
+      [data-lens-settings="plugin"] {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      [data-lens-settings="plugin-copy"] {
+        display: grid;
+        min-width: 0;
+      }
+      [data-lens-settings="plugin-name"] {
+        font: 500 13px/1.3 system-ui, sans-serif;
+      }
+      [data-lens-settings="plugin-source"] {
+        max-width: 42ch;
+        overflow: hidden;
+        color: color-mix(in srgb, currentColor 58%, transparent);
+        font: 11px/1.3 ui-monospace, monospace;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      [data-lens-settings="plugin-description"] {
+        margin-top: 3px;
+        color: color-mix(in srgb, currentColor 68%, transparent);
+        font: 12px/1.35 system-ui, sans-serif;
+      }
+      [data-lens-settings="toggle"] {
+        position: relative;
+        display: inline-flex;
+        width: 38px;
+        height: 22px;
+        flex: 0 0 auto;
+        align-items: center;
+      }
+      [data-lens-settings="toggle"] input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      [data-lens-settings="toggle-track"] {
+        width: 100%;
+        height: 100%;
+        border-radius: 999px;
+        background: color-mix(in srgb, currentColor 18%, transparent);
+        transition: background 120ms ease;
+      }
+      [data-lens-settings="toggle-track"]::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        background: canvas;
+        box-shadow: 0 1px 3px rgb(0 0 0 / 25%);
+        transition: transform 120ms ease;
+      }
+      [data-lens-settings="toggle"] input:checked + [data-lens-settings="toggle-track"] {
+        background: #22c55e;
+      }
+      [data-lens-settings="toggle"] input:checked + [data-lens-settings="toggle-track"]::after {
+        transform: translateX(16px);
+      }
+      [data-lens-settings="reload"] {
+        border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: 12px/1 system-ui, sans-serif;
+      }
+    </style>
+    <div data-lens-settings="header">
+      <h2 data-lens-settings="title">Plugins</h2>
+      <button type="button" data-lens-settings="reload">Reload UI</button>
+    </div>
+    <p data-lens-settings="hint">Enable or disable plugins, then reload OpenCode Web to apply the current set.</p>
+    <div data-lens-settings="list">Loading plugins...</div>
+  `;
+
+    content.appendChild(section);
+    section
+      .querySelector('[data-lens-settings="reload"]')
+      ?.addEventListener("click", () => location.reload());
+    renderPluginList(section);
+    return section;
   }
 
   function restoreSettingsPanel(content) {
