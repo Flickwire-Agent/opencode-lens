@@ -1,47 +1,40 @@
 {
-  "name": "opencode-web-voice-input",
+  "name": "opencode-lens",
   "version": "0.1.0",
-  "description": "Voice input companion for the OpenCode web interface.",
+  "description": "A tiny plugin lens for OpenCode Web.",
   "keywords": [
+    "html-injection",
     "opencode",
-    "opencode-plugin",
-    "speech-to-text",
-    "voice-input",
-    "web-speech-api"
+    "opencode-web",
+    "plugin-manager",
+    "reverse-proxy"
   ],
-  "homepage": "https://github.com/Flickwire-Agent/opencode-web-voice-input#readme",
+  "homepage": "https://github.com/Flickwire-Agent/opencode-lens#readme",
   "bugs": {
-    "url": "https://github.com/Flickwire-Agent/opencode-web-voice-input/issues"
+    "url": "https://github.com/Flickwire-Agent/opencode-lens/issues"
   },
   "license": "MIT",
   "author": "Flickwire-Agent",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/Flickwire-Agent/opencode-web-voice-input.git"
+    "url": "git+ssh://git@github.com/Flickwire-Agent/opencode-lens.git"
+  },
+  "bin": {
+    "opencode-lens": "./scripts/lens-proxy.mjs"
   },
   "files": [
-    "dist",
+    "scripts",
     "README.md",
     "LICENSE"
   ],
   "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./client": "./dist/client.js",
-    "./userscript": "./dist/opencode-web-voice-input.user.js",
-    "./bookmarklet": "./dist/bookmarklet.txt"
-  },
   "scripts": {
-    "build": "pnpm run clean && tsc -p tsconfig.build.json && node scripts/build-browser-assets.mjs",
-    "clean": "rm -rf dist",
+    "build": "pnpm typecheck",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint .",
-    "proxy": "node scripts/inject-proxy.mjs",
-    "start": "node scripts/inject-proxy.mjs",
+    "proxy": "node scripts/lens-proxy.mjs",
+    "start": "node scripts/lens-proxy.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
