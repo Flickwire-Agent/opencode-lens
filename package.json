@@ -1,0 +1,53 @@
+{
+  "name": "opencode-web-voice-input",
+  "version": "0.1.0",
+  "description": "Voice input companion for the OpenCode web interface.",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "speech-to-text",
+    "voice-input",
+    "web-speech-api"
+  ],
+  "homepage": "https://github.com/Flickwire-Agent/opencode-web-voice-input#readme",
+  "bugs": {
+    "url": "https://github.com/Flickwire-Agent/opencode-web-voice-input/issues"
+  },
+  "license": "MIT",
+  "author": "Flickwire-Agent",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Flickwire-Agent/opencode-web-voice-input.git"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": "./dist/client.js",
+    "./userscript": "./dist/opencode-web-voice-input.user.js",
+    "./bookmarklet": "./dist/bookmarklet.txt"
+  },
+  "scripts": {
+    "build": "pnpm run clean && tsc -p tsconfig.build.json && node scripts/build-browser-assets.mjs",
+    "clean": "rm -rf dist",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "oxlint": "latest",
+    "typescript": "latest"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.7.0"
+}

@@ -1,0 +1,264 @@
+type SpeechRecognitionEventLike = Event & {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+};
+
+type SpeechRecognitionErrorEventLike = Event & {
+  error?: string;
+  message?: string;
+};
+
+type SpeechRecognitionLike = EventTarget & {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+const STATE_KEY = "__opencodeWebVoiceInput";
+
+type VoiceWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  [STATE_KEY]?: { cleanup: () => void };
+};
+
+const voiceWindow = window as VoiceWindow;
+
+type State = {
+  active: boolean;
+  finalText: string;
+  interimText: string;
+  recognition?: SpeechRecognitionLike;
+  button?: HTMLButtonElement;
+  style?: HTMLStyleElement;
+  observer?: MutationObserver;
+};
+
+const state: State = {
+  active: false,
+  finalText: "",
+  interimText: "",
+};
+
+function main() {
+  voiceWindow[STATE_KEY]?.cleanup();
+
+  injectStyle();
+  attachWhenReady();
+
+  state.observer = new MutationObserver(attachWhenReady);
+  state.observer.observe(document.documentElement, { childList: true, subtree: true });
+
+  voiceWindow[STATE_KEY] = { cleanup };
+}
+
+function attachWhenReady() {
+  const form = document.querySelector<HTMLElement>(
+    '[data-component="session-composer"], [data-component="session-new-composer"]',
+  );
+  if (!form || form.querySelector("[data-opencode-voice-input]")) return;
+
+  const actions = form.querySelector<HTMLElement>('[data-action="prompt-attach"]')?.parentElement;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.opencodeVoiceInput = "true";
+  button.className = "opencode-web-voice-input-button";
+  button.title = "Voice input";
+  button.setAttribute("aria-label", "Start voice input");
+  button.textContent = "Mic";
+  button.addEventListener("click", toggleRecognition);
+
+  if (actions) {
+    actions.insertBefore(button, actions.firstChild);
+  } else {
+    form.appendChild(button);
+  }
+
+  state.button = button;
+  updateButton();
+}
+
+function toggleRecognition() {
+  if (state.active) {
+    state.recognition?.stop();
+    return;
+  }
+
+  const Recognition = voiceWindow.SpeechRecognition ?? voiceWindow.webkitSpeechRecognition;
+  if (!Recognition) {
+    showStatus(
+      "Speech recognition is not available in this browser. Try Chrome or Edge over localhost/HTTPS.",
+      true,
+    );
+    return;
+  }
+
+  state.finalText = "";
+  state.interimText = "";
+  state.recognition = new Recognition();
+  state.recognition.continuous = true;
+  state.recognition.interimResults = true;
+  state.recognition.lang = document.documentElement.lang || navigator.language || "en-US";
+  state.recognition.onstart = () => {
+    state.active = true;
+    updateButton();
+    showStatus("Listening. Click Mic again to stop.");
+  };
+  state.recognition.onend = () => {
+    state.active = false;
+    commitTranscript();
+    updateButton();
+    showStatus(state.finalText.trim() ? "Voice input inserted." : "Voice input stopped.");
+  };
+  state.recognition.onerror = (event) => {
+    state.active = false;
+    updateButton();
+    showStatus(
+      `Voice input failed${event.error ? `: ${event.error}` : ""}${event.message ? ` (${event.message})` : ""}`,
+      true,
+    );
+  };
+  state.recognition.onresult = (event) => {
+    const parts = Array.from(event.results).slice(event.resultIndex);
+    const final = parts
+      .filter((result) => result.isFinal)
+      .map((result) => result[0]?.transcript ?? "")
+      .join("");
+    const interim = parts
+      .filter((result) => !result.isFinal)
+      .map((result) => result[0]?.transcript ?? "")
+      .join("");
+
+    state.finalText += final;
+    state.interimText = interim;
+    showStatus((state.finalText + state.interimText).trim() || "Listening...");
+  };
+
+  state.recognition.start();
+}
+
+function commitTranscript() {
+  const transcript = state.finalText.trim();
+  if (!transcript) return;
+
+  const editor = document.querySelector<HTMLElement>(
+    '[data-component="prompt-input"][contenteditable="true"]',
+  );
+  if (!editor) {
+    showStatus("Could not find the OpenCode prompt editor.", true);
+    return;
+  }
+
+  editor.focus();
+  const existing = editor.textContent?.replace(/\u200B/g, "") ?? "";
+  const separator =
+    existing.trim().length > 0 && !existing.endsWith(" ") && !existing.endsWith("\n") ? " " : "";
+  editor.textContent = `${existing}${separator}${transcript}`;
+  editor.dispatchEvent(
+    new InputEvent("input", { bubbles: true, inputType: "insertText", data: transcript }),
+  );
+  placeCursorAtEnd(editor);
+}
+
+function placeCursorAtEnd(editor: HTMLElement) {
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  range.collapse(false);
+
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+}
+
+function updateButton() {
+  if (!state.button) return;
+
+  state.button.classList.toggle("is-listening", state.active);
+  state.button.textContent = state.active ? "Stop" : "Mic";
+  state.button.setAttribute("aria-label", state.active ? "Stop voice input" : "Start voice input");
+}
+
+function showStatus(message: string, error = false) {
+  let status = document.querySelector<HTMLElement>("[data-opencode-voice-status]");
+  if (!status) {
+    status = document.createElement("div");
+    status.dataset.opencodeVoiceStatus = "true";
+    status.setAttribute("role", "status");
+    document.body.appendChild(status);
+  }
+
+  status.textContent = message;
+  status.className = error
+    ? "opencode-web-voice-input-status is-error"
+    : "opencode-web-voice-input-status";
+  window.setTimeout(() => {
+    if (status?.textContent === message && !state.active) status.remove();
+  }, 4000);
+}
+
+function injectStyle() {
+  state.style = document.createElement("style");
+  state.style.textContent = `
+    .opencode-web-voice-input-button {
+      height: 28px;
+      min-width: 34px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 8px;
+      background: transparent;
+      color: currentColor;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      opacity: 0.75;
+    }
+    .opencode-web-voice-input-button:hover,
+    .opencode-web-voice-input-button:focus-visible {
+      opacity: 1;
+      background: color-mix(in srgb, currentColor 12%, transparent);
+      outline: none;
+    }
+    .opencode-web-voice-input-button.is-listening {
+      color: #ef4444;
+      opacity: 1;
+    }
+    .opencode-web-voice-input-status {
+      position: fixed;
+      left: 50%;
+      bottom: 20px;
+      z-index: 2147483647;
+      max-width: min(560px, calc(100vw - 32px));
+      transform: translateX(-50%);
+      border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: color-mix(in srgb, canvas 92%, black 8%);
+      color: canvastext;
+      box-shadow: 0 10px 30px rgb(0 0 0 / 18%);
+      font: 13px/1.35 system-ui, sans-serif;
+    }
+    .opencode-web-voice-input-status.is-error {
+      color: #ef4444;
+    }
+  `;
+  document.head.appendChild(state.style);
+}
+
+function cleanup() {
+  state.recognition?.stop();
+  state.button?.remove();
+  state.style?.remove();
+  state.observer?.disconnect();
+  document.querySelector("[data-opencode-voice-status]")?.remove();
+  voiceWindow[STATE_KEY] = undefined;
+}
+
+main();
