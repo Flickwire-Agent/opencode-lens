@@ -287,7 +287,7 @@ async function serveFile(res, rawPath) {
   }
 
   const resolved = rawPath.startsWith("~")
-    ? resolve(homedir(), rawPath.slice(1))
+    ? resolve(homedir(), rawPath.slice(1).replace(/^\//, ""))
     : rawPath.startsWith("/")
       ? rawPath
       : resolve(cwd, rawPath);
