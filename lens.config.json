@@ -1,5 +1,6 @@
 {
   "plugins": [
-    "../opencode-lens-image-preview/lens.plugin.json"
+    "../opencode-lens-image-preview/lens.plugin.json",
+    "../opencode-web-voice-plugin/lens.plugin.json"
   ]
 }
