@@ -3,8 +3,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, request } from "node:http";
 import { connect } from "node:net";
-import { homedir } from "node:os";
-import { basename, dirname, extname, isAbsolute, resolve } from "node:path";
+import { basename, dirname, isAbsolute, resolve } from "node:path";
 
 const cwd = process.cwd();
 const target = process.env.OPENCODE_TARGET || "http://127.0.0.1:5050";
@@ -259,58 +258,7 @@ async function handleLensRequest(req, res) {
     return;
   }
 
-  const fileMatch = url.pathname.match(/^\/__lens\/files\/(.+)$/);
-  if (req.method === "GET" && fileMatch) {
-    await serveFile(res, decodeURIComponent(fileMatch[1]));
-    return;
-  }
-
   sendJson(res, { error: "Not found" }, 404);
-}
-
-const MIME_TYPES = {
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".webp": "image/webp",
-  ".svg": "image/svg+xml",
-  ".bmp": "image/bmp",
-  ".ico": "image/x-icon",
-  ".avif": "image/avif",
-};
-
-async function serveFile(res, rawPath) {
-  if (rawPath.includes("..")) {
-    sendJson(res, { error: "Forbidden" }, 403);
-    return;
-  }
-
-  const resolved = rawPath.startsWith("~")
-    ? resolve(homedir(), rawPath.slice(1).replace(/^\//, ""))
-    : rawPath.startsWith("/")
-      ? rawPath
-      : resolve(cwd, rawPath);
-
-  if (!existsSync(resolved)) {
-    sendJson(res, { error: "Not found" }, 404);
-    return;
-  }
-
-  const ext = extname(resolved).toLowerCase();
-  const contentType = MIME_TYPES[ext] || "application/octet-stream";
-
-  try {
-    const content = readFileSync(resolved);
-    res.writeHead(200, {
-      "content-type": contentType,
-      "content-length": content.length,
-      "cache-control": "no-cache",
-    });
-    res.end(content);
-  } catch {
-    sendJson(res, { error: "Failed to read file" }, 500);
-  }
 }
 
 function readRequestBody(req) {
