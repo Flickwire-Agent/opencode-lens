@@ -374,7 +374,10 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
         display: none !important;
       }
       [data-lens-settings="header"] {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
       }
       [data-lens-settings="title"] {
         margin: 0;
@@ -474,6 +477,7 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
     </style>
     <div data-lens-settings="header">
       <h2 data-lens-settings="title">Plugins</h2>
+      <button type="button" data-lens-settings="reload">Reload UI</button>
     </div>
     <p data-lens-settings="hint">Enable or disable plugins, then reload OpenCode Web to apply the current set.</p>
     <div data-lens-settings="list">Loading plugins...</div>
@@ -742,7 +746,10 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
         display: none !important;
       }
       [data-lens-settings="header"] {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
       }
       [data-lens-settings="title"] {
         margin: 0;
@@ -842,6 +849,7 @@ const LENS_SETTINGS_CLIENT = `(${function lensSettingsClient() {
     </style>
     <div data-lens-settings="header">
       <h2 data-lens-settings="title">Plugins</h2>
+      <button type="button" data-lens-settings="reload">Reload UI</button>
     </div>
     <p data-lens-settings="hint">Enable or disable plugins, then reload OpenCode Web to apply the current set.</p>
     <div data-lens-settings="list">Loading plugins...</div>
