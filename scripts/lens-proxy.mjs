@@ -251,8 +251,21 @@ async function handleLensRequest(req, res) {
       return;
     }
 
+    let update;
+    try {
+      update = JSON.parse(body || "{}");
+    } catch {
+      sendJson(res, { error: "Request body must be valid JSON" }, 400);
+      return;
+    }
+
+    if (!update || typeof update !== "object" || typeof update.enabled !== "boolean") {
+      sendJson(res, { error: "Request body must include a boolean enabled value" }, 400);
+      return;
+    }
+
     state.plugins ||= {};
-    state.plugins[plugin.id] = { enabled: Boolean(JSON.parse(body || "{}").enabled) };
+    state.plugins[plugin.id] = { enabled: update.enabled };
     writeState();
     sendJson(res, { ok: true });
     return;
