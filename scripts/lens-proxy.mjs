@@ -25,6 +25,7 @@ const targetHost = targetUrl.hostname;
 const targetPort = parseInt(targetUrl.port || (targetUrl.protocol === "https:" ? "443" : "80"), 10);
 const INJECT_HEAD = "</head>";
 const INJECT_BODY = "</body>";
+const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 
 const server = createServer(async (clientReq, clientRes) => {
   if (clientReq.url?.startsWith("/__lens/")) {
@@ -244,7 +245,15 @@ async function handleLensRequest(req, res) {
 
   const toggleMatch = url.pathname.match(/^\/__lens\/plugins\/([^/]+)$/);
   if (req.method === "POST" && toggleMatch) {
-    const body = await readRequestBody(req);
+    let body;
+    try {
+      body = await readRequestBody(req);
+    } catch (error) {
+      const status = error.statusCode === 413 ? 413 : 400;
+      sendJson(res, { error: error.message || "Request body could not be read" }, status);
+      return;
+    }
+
     const plugin = plugins.find((candidate) => candidate.id === decodeURIComponent(toggleMatch[1]));
     if (!plugin) {
       sendJson(res, { error: "Plugin not found" }, 404);
@@ -275,14 +284,38 @@ async function handleLensRequest(req, res) {
 }
 
 function readRequestBody(req) {
+  const contentLength = Number(req.headers["content-length"]);
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BODY_BYTES) {
+    req.resume();
+    return Promise.reject(requestBodyTooLargeError());
+  }
+
   return new Promise((resolveBody, reject) => {
     let body = "";
+    let size = 0;
+    let rejected = false;
     req.on("data", (chunk) => {
+      if (rejected) return;
+
+      size += chunk.length;
+      if (size > MAX_REQUEST_BODY_BYTES) {
+        rejected = true;
+        req.resume();
+        reject(requestBodyTooLargeError());
+        return;
+      }
+
       body += chunk.toString("utf8");
     });
     req.on("end", () => resolveBody(body));
     req.on("error", reject);
   });
+}
+
+function requestBodyTooLargeError() {
+  const error = new Error(`Request body must not exceed ${MAX_REQUEST_BODY_BYTES} bytes`);
+  error.statusCode = 413;
+  return error;
 }
 
 function sendJson(res, body, status = 200) {
