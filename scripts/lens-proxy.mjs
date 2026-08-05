@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { createServer, request } from "node:http";
+import { createServer, request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
 import { connect } from "node:net";
 import { basename, dirname, isAbsolute, resolve } from "node:path";
+import { connect as connectTls } from "node:tls";
 
 const cwd = process.cwd();
 const target = process.env.OPENCODE_TARGET || "http://127.0.0.1:5050";
@@ -21,8 +23,12 @@ if (plugins.length === 0) {
 }
 
 const targetUrl = new URL(target);
+if (!["http:", "https:"].includes(targetUrl.protocol)) {
+  throw new Error("OPENCODE_TARGET must use the http or https protocol.");
+}
 const targetHost = targetUrl.hostname;
 const targetPort = parseInt(targetUrl.port || (targetUrl.protocol === "https:" ? "443" : "80"), 10);
+const proxyRequest = targetUrl.protocol === "https:" ? httpsRequest : httpRequest;
 const INJECT_HEAD = "</head>";
 const INJECT_BODY = "</body>";
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
@@ -37,7 +43,7 @@ const server = createServer(async (clientReq, clientRes) => {
   delete headers["accept-encoding"];
   delete headers.host;
 
-  const proxyReq = request(
+  const proxyReq = proxyRequest(
     {
       hostname: targetHost,
       port: targetPort,
@@ -85,22 +91,31 @@ const server = createServer(async (clientReq, clientRes) => {
 });
 
 server.on("upgrade", (clientReq, clientSocket, clientHead) => {
-  const proxySocket = connect(targetPort, targetHost, () => {
-    const lines = [
-      `${clientReq.method} ${clientReq.url} HTTP/${clientReq.httpVersion}`,
-      ...Object.entries(clientReq.headers)
-        .filter(([key]) => !["host", "connection"].includes(key.toLowerCase()))
-        .map(([key, value]) => `${key}: ${value}`),
-      "",
-      "",
-    ];
+  const connectToTarget = targetUrl.protocol === "https:" ? connectTls : connect;
+  const proxySocket = connectToTarget(
+    targetUrl.protocol === "https:"
+      ? { host: targetHost, port: targetPort, servername: targetHost }
+      : { host: targetHost, port: targetPort },
+    () => {
+      const lines = [
+        `${clientReq.method} ${clientReq.url} HTTP/${clientReq.httpVersion}`,
+        `Host: ${targetUrl.host}`,
+        "Connection: Upgrade",
+        ...Object.entries(clientReq.headers)
+          .filter(([key]) => !["host", "connection", "upgrade"].includes(key.toLowerCase()))
+          .map(([key, value]) => `${key}: ${value}`),
+        "Upgrade: websocket",
+        "",
+        "",
+      ];
 
-    proxySocket.write(lines.join("\r\n"));
-    proxySocket.write(clientHead);
+      proxySocket.write(lines.join("\r\n"));
+      proxySocket.write(clientHead);
 
-    clientSocket.pipe(proxySocket);
-    proxySocket.pipe(clientSocket);
-  });
+      clientSocket.pipe(proxySocket);
+      proxySocket.pipe(clientSocket);
+    },
+  );
 
   proxySocket.on("error", () => clientSocket.destroy());
   clientSocket.on("error", () => proxySocket.destroy());
