@@ -70,6 +70,7 @@ const server = createServer(async (clientReq, clientRes) => {
 
         const responseHeaders = { ...proxyRes.headers };
         delete responseHeaders["content-length"];
+        delete responseHeaders["transfer-encoding"];
         delete responseHeaders["content-security-policy"];
         delete responseHeaders["content-security-policy-report-only"];
         responseHeaders["content-length"] = String(Buffer.byteLength(body, "utf8"));
