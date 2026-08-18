@@ -35,6 +35,7 @@
     "lint": "oxlint .",
     "proxy": "node scripts/lens-proxy.mjs",
     "start": "node scripts/lens-proxy.mjs",
+    "test": "node --test",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
