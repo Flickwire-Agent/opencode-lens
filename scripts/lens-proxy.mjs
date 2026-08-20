@@ -61,12 +61,12 @@ const server = createServer(async (clientReq, clientRes) => {
         return;
       }
 
-      let body = "";
+      const chunks = [];
       proxyRes.on("data", (chunk) => {
-        body += chunk.toString("utf8");
+        chunks.push(chunk);
       });
       proxyRes.on("end", () => {
-        body = inject(body, getEnabledInjections());
+        const body = inject(Buffer.concat(chunks).toString("utf8"), getEnabledInjections());
 
         const responseHeaders = { ...proxyRes.headers };
         delete responseHeaders["content-length"];

@@ -40,6 +40,36 @@ test("rewritten HTML does not retain chunked transfer encoding", async (t) => {
   assert.match(response.body, /data-lens-settings/);
 });
 
+test("rewritten HTML preserves UTF-8 characters split across upstream chunks", async (t) => {
+  const body = Buffer.from("<html><head></head><body>snowman: \u2603</body></html>", "utf8");
+  const splitAt = Buffer.from("<html><head></head><body>snowman: ", "utf8").length + 1;
+  const upstream = createServer((_, response) => {
+    response.writeHead(200, { "content-type": "text/html" });
+    response.write(body.subarray(0, splitAt));
+    response.end(body.subarray(splitAt));
+  });
+  upstream.listen(0, "127.0.0.1");
+  await once(upstream, "listening");
+  t.after(() => upstream.close());
+
+  const upstreamAddress = upstream.address();
+  assert(upstreamAddress && typeof upstreamAddress !== "string");
+  const lensPort = await unusedPort();
+  const lens = spawn(process.execPath, [proxyPath], {
+    env: {
+      ...process.env,
+      LENS_CONFIG: "missing-lens-config.json",
+      OPENCODE_TARGET: `http://127.0.0.1:${upstreamAddress.port}`,
+      PORT: String(lensPort),
+    },
+  });
+  t.after(() => lens.kill());
+  await waitForOutput(lens, "Lens ready:");
+
+  const response = await request(lensPort);
+  assert.match(response.body, /snowman: \u2603/);
+});
+
 async function unusedPort() {
   const server = createServer();
   server.listen(0, "127.0.0.1");
